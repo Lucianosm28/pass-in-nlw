@@ -10,7 +10,7 @@ import lucianomelo.com.passin.domain.event.Event;
 import java.time.LocalDateTime;
 
 @Entity
-@Table
+@Table(name = "attendees")
 @Getter
 @Setter
 @AllArgsConstructor
@@ -31,5 +31,5 @@ public class Attendee {
     private Event event;
 
     @Column(name = "created_at")
-    private LocalDateTime created_At;
+    private LocalDateTime createdAt;
 }
