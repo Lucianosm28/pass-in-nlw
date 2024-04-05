@@ -3,7 +3,10 @@ package lucianomelo.com.passin.services;
 import lombok.RequiredArgsConstructor;
 import lucianomelo.com.passin.domain.attendee.Attendee;
 import lucianomelo.com.passin.domain.event.Event;
+import lucianomelo.com.passin.domain.event.exceptions.EventFullException;
 import lucianomelo.com.passin.domain.event.exceptions.EventNotFoundException;
+import lucianomelo.com.passin.dto.attendee.AttendeeIdDTO;
+import lucianomelo.com.passin.dto.attendee.AttendeeRequestDTO;
 import lucianomelo.com.passin.dto.event.EventIdDTO;
 import lucianomelo.com.passin.dto.event.EventRequestDTO;
 import lucianomelo.com.passin.dto.event.EventResponseDTO;
@@ -11,6 +14,7 @@ import lucianomelo.com.passin.repositories.EventRepository;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -20,9 +24,9 @@ public class EventService {
     private final AttendeeService  attendeeService;
 
     public EventResponseDTO getEventDetail(String eventId){
-        Event event = this.eventRepository.findById(eventId).orElseThrow(() -> new EventNotFoundException("Event not fount with ID:" + eventId));
-        List<Attendee> attendeesList = this.attendeeService.getAllAttendeesFromEvent(eventId);
-        return new EventResponseDTO(event, attendeesList.size());
+        Event event = this.getEventById(eventId);
+        List<Attendee> attendeeList = this.attendeeService.getAllAttendeesFromEvent(eventId);
+        return new EventResponseDTO(event, attendeeList.size());
     }
     public EventIdDTO createEvent(EventRequestDTO eventDTO){
         Event newEvent = new Event();
@@ -37,6 +41,29 @@ public class EventService {
 
     }
 
+    public AttendeeIdDTO registerAttendeeOnEvent(String eventId, AttendeeRequestDTO attendeeRequestDTO){
+        this.attendeeService.verifyAttendeeSubscription(attendeeRequestDTO.email(), eventId);
+
+        Event event = this.getEventById(eventId);
+        List<Attendee> attendeeList = this.attendeeService.getAllAttendeesFromEvent(eventId);
+
+        if(event.getMaximumAttendees() <= attendeeList.size()) throw new EventFullException("Event is full");
+
+        Attendee newAttendee = new Attendee();
+        newAttendee.setName(attendeeRequestDTO.name());
+        newAttendee.setEmail(attendeeRequestDTO.email());
+        newAttendee.setEvent(event);
+        newAttendee.setCreatedAt(LocalDateTime.now());
+        this.attendeeService.registerAttendee(newAttendee);
+
+        return new AttendeeIdDTO(newAttendee.getId());
+
+    }
+
+    private Event getEventById(String eventId){
+        return this.eventRepository.findById(eventId).orElseThrow(() -> new EventNotFoundException("Event not fount with ID:" + eventId));
+    }
+
     private String createSlug(String text){
         String normalized = Normalizer.normalize(text, Normalizer.Form.NFD);
         return normalized.replaceAll("[\\p{InCOMBINING_DIACRITICAL_MARKS}]", "")
@@ -45,3 +72,4 @@ public class EventService {
                 .toLowerCase();
     }
 }
+
